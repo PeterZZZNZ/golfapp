@@ -1,0 +1,210 @@
+rules_version = '2';
+
+// Security rules for the mytraqr-golf project.
+//
+// Collections (phase 1 + 2):
+//   /users/{uid}                    — private profile
+//   /coaches/{uid}                  — public coach profile
+//   /pairingCodes/{code}            — short-lived pairing invitations
+//   /pairings/{coachId__playerId}   — active coach↔player links
+//   /rounds/{roundId}               — round data, owned by a player uid
+//   /courses/{courseId}             — course data, owned by a player uid
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isUnchanged(field) {
+      return resource.data[field] == request.resource.data[field];
+    }
+
+    // Returns true if an active pairing doc exists linking coach → player.
+    function isPairedCoach(playerUid) {
+      let pairId = request.auth.uid + "__" + playerUid;
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/pairings/$(pairId))
+        && get(/databases/$(database)/documents/pairings/$(pairId)).data.status == "active";
+    }
+
+    // -------------------------------------------------------------------
+    // /users/{uid}
+    // -------------------------------------------------------------------
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isPairedCoach(uid);
+      allow create: if isOwner(uid) && request.resource.data.uid == uid;
+      allow update: if isOwner(uid)
+                    && isUnchanged('uid')
+                    && isUnchanged('createdAt');
+      allow delete: if isOwner(uid);
+    }
+
+    // -------------------------------------------------------------------
+    // /coaches/{uid}
+    // -------------------------------------------------------------------
+    match /coaches/{uid} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(uid) && request.resource.data.uid == uid;
+      allow update: if isOwner(uid)
+                    && isUnchanged('uid')
+                    && isUnchanged('createdAt');
+      allow delete: if isOwner(uid);
+    }
+
+    // -------------------------------------------------------------------
+    // /pairingCodes/{code}
+    // -------------------------------------------------------------------
+    match /pairingCodes/{code} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+                    && request.resource.data.coachId == request.auth.uid
+                    && request.resource.data.code == code
+                    && request.resource.data.used == false;
+
+      allow update: if isSignedIn()
+                    && resource.data.used == false
+                    && request.resource.data.used == true
+                    && request.resource.data.usedBy == request.auth.uid
+                    && isUnchanged('coachId')
+                    && isUnchanged('code')
+                    && isUnchanged('createdAt')
+                    && isUnchanged('expiresAt')
+                    && resource.data.coachId != request.auth.uid;
+
+      allow delete: if isSignedIn() && resource.data.coachId == request.auth.uid;
+    }
+
+    // -------------------------------------------------------------------
+    // /pairings/{id}  (id format: coachId + "__" + playerId)
+    //
+    // We derive the parties from the deterministic doc ID so the read rule
+    // works even when the document doesn't exist yet (resource == null).
+    // This is needed by redeemPairingCode(), which does a transaction-get to
+    // check for duplicates before the pairing is written.
+    // -------------------------------------------------------------------
+    match /pairings/{pid} {
+      function pairingCoachId() { return pid.split('__')[0]; }
+      function pairingPlayerId() { return pid.split('__')[1]; }
+
+      allow read: if isSignedIn() && (
+        pairingCoachId() == request.auth.uid ||
+        pairingPlayerId() == request.auth.uid
+      );
+
+      // NOTE: rules evaluate pre-commit state, so the code-update (used→true)
+      // and pairing-create happen in the same transaction. We check used==false
+      // (pre-commit) to confirm the code is still available; the SDK transaction
+      // atomically marks it used, so only one player can succeed.
+      allow create: if isSignedIn()
+        && request.resource.data.playerId == request.auth.uid
+        && request.resource.data.coachId != request.auth.uid
+        && pid == request.resource.data.coachId + "__" + request.resource.data.playerId
+        && request.resource.data.status == "active"
+        && exists(/databases/$(database)/documents/pairingCodes/$(request.resource.data.codeUsed))
+        && get(/databases/$(database)/documents/pairingCodes/$(request.resource.data.codeUsed)).data.coachId == request.resource.data.coachId
+        && get(/databases/$(database)/documents/pairingCodes/$(request.resource.data.codeUsed)).data.used == false;
+
+      allow update: if isSignedIn()
+        && (resource.data.coachId == request.auth.uid ||
+            resource.data.playerId == request.auth.uid)
+        && isUnchanged('coachId')
+        && isUnchanged('playerId')
+        && isUnchanged('codeUsed')
+        && isUnchanged('pairedAt');
+
+      allow delete: if false;
+    }
+
+    // -------------------------------------------------------------------
+    // /rounds/{roundId}
+    //
+    // Owners (players) have full CRUD.
+    // Coaches with an active pairing can read any round belonging to their
+    // player. Coach edits are not yet enabled (phase 3).
+    // -------------------------------------------------------------------
+    match /rounds/{roundId} {
+      allow read: if isSignedIn() && (
+        resource.data.ownerId == request.auth.uid ||
+        isPairedCoach(resource.data.ownerId)
+      );
+
+      allow create: if isSignedIn()
+                    && request.resource.data.ownerId == request.auth.uid;
+
+      allow update: if isSignedIn()
+                    && resource.data.ownerId == request.auth.uid
+                    && isUnchanged('ownerId')
+                    && isUnchanged('id')
+                    && isUnchanged('createdAt');
+
+      allow delete: if isSignedIn()
+                    && resource.data.ownerId == request.auth.uid;
+    }
+
+    // -------------------------------------------------------------------
+    // /courses/{courseId}
+    //
+    // Owners have full CRUD. Paired coaches can read (needed to display
+    // course name / hole distances when viewing a player's round).
+    // -------------------------------------------------------------------
+    match /courses/{courseId} {
+      allow read: if isSignedIn() && (
+        resource.data.ownerId == request.auth.uid ||
+        isPairedCoach(resource.data.ownerId)
+      );
+
+      allow create: if isSignedIn()
+                    && request.resource.data.ownerId == request.auth.uid;
+
+      allow update: if isSignedIn()
+                    && resource.data.ownerId == request.auth.uid
+                    && isUnchanged('ownerId')
+                    && isUnchanged('id')
+                    && isUnchanged('createdAt');
+
+      allow delete: if isSignedIn()
+                    && resource.data.ownerId == request.auth.uid;
+    }
+
+    // -------------------------------------------------------------------
+    // /publicCourses/{courseId}
+    //
+    // A community-contributed course library. Anyone signed in can read.
+    // Only the original publisher can update or delete their entry.
+    // importCount is bumped by any signed-in user (fire-and-forget from client).
+    // -------------------------------------------------------------------
+    match /publicCourses/{courseId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+                    && request.resource.data.publishedBy == request.auth.uid
+                    && request.resource.data.id == courseId;
+
+      // Owner can update course content; any signed-in user can bump importCount.
+      allow update: if isSignedIn() && (
+        // Full update by owner (course data changed)
+        (resource.data.publishedBy == request.auth.uid
+          && isUnchanged('publishedBy')
+          && isUnchanged('id'))
+        ||
+        // Import-count bump by anyone (only importCount changes)
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['importCount'])
+      );
+
+      allow delete: if isSignedIn()
+                    && resource.data.publishedBy == request.auth.uid;
+    }
+
+    // Default-deny everything not matched above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

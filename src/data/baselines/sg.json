@@ -1,0 +1,98 @@
+{
+  "note": "Approximate PGA Tour-style baselines. 'strokesToHole' is the expected number of strokes from this lie at this distance. Values are interpolated between anchors at lookup time. Distances in yards, except green is in feet.",
+  "tee": [
+    { "distance": 100, "strokesToHole": 2.75 },
+    { "distance": 150, "strokesToHole": 2.91 },
+    { "distance": 200, "strokesToHole": 3.05 },
+    { "distance": 250, "strokesToHole": 3.3 },
+    { "distance": 300, "strokesToHole": 3.58 },
+    { "distance": 350, "strokesToHole": 3.82 },
+    { "distance": 400, "strokesToHole": 4.02 },
+    { "distance": 450, "strokesToHole": 4.23 },
+    { "distance": 500, "strokesToHole": 4.45 },
+    { "distance": 550, "strokesToHole": 4.65 }
+  ],
+  "fairway": [
+    { "distance": 10, "strokesToHole": 2.18 },
+    { "distance": 20, "strokesToHole": 2.4 },
+    { "distance": 40, "strokesToHole": 2.6 },
+    { "distance": 60, "strokesToHole": 2.7 },
+    { "distance": 80, "strokesToHole": 2.75 },
+    { "distance": 100, "strokesToHole": 2.8 },
+    { "distance": 125, "strokesToHole": 2.88 },
+    { "distance": 150, "strokesToHole": 2.97 },
+    { "distance": 175, "strokesToHole": 3.08 },
+    { "distance": 200, "strokesToHole": 3.19 },
+    { "distance": 225, "strokesToHole": 3.3 },
+    { "distance": 250, "strokesToHole": 3.42 },
+    { "distance": 300, "strokesToHole": 3.7 }
+  ],
+  "rough": [
+    { "distance": 10, "strokesToHole": 2.34 },
+    { "distance": 20, "strokesToHole": 2.55 },
+    { "distance": 40, "strokesToHole": 2.8 },
+    { "distance": 60, "strokesToHole": 2.92 },
+    { "distance": 80, "strokesToHole": 2.98 },
+    { "distance": 100, "strokesToHole": 3.04 },
+    { "distance": 125, "strokesToHole": 3.12 },
+    { "distance": 150, "strokesToHole": 3.22 },
+    { "distance": 175, "strokesToHole": 3.33 },
+    { "distance": 200, "strokesToHole": 3.45 },
+    { "distance": 225, "strokesToHole": 3.58 },
+    { "distance": 250, "strokesToHole": 3.72 },
+    { "distance": 300, "strokesToHole": 4.0 }
+  ],
+  "bunker": [
+    { "distance": 10, "strokesToHole": 2.5 },
+    { "distance": 20, "strokesToHole": 2.72 },
+    { "distance": 40, "strokesToHole": 2.95 },
+    { "distance": 60, "strokesToHole": 3.09 },
+    { "distance": 80, "strokesToHole": 3.17 },
+    { "distance": 100, "strokesToHole": 3.22 },
+    { "distance": 125, "strokesToHole": 3.32 },
+    { "distance": 150, "strokesToHole": 3.44 },
+    { "distance": 175, "strokesToHole": 3.58 },
+    { "distance": 200, "strokesToHole": 3.72 }
+  ],
+  "recovery": [
+    { "distance": 50, "strokesToHole": 3.2 },
+    { "distance": 100, "strokesToHole": 3.5 },
+    { "distance": 150, "strokesToHole": 3.82 },
+    { "distance": 200, "strokesToHole": 4.05 },
+    { "distance": 250, "strokesToHole": 4.3 }
+  ],
+  "trees": [
+    { "distance": 50, "strokesToHole": 3.15 },
+    { "distance": 100, "strokesToHole": 3.45 },
+    { "distance": 150, "strokesToHole": 3.78 },
+    { "distance": 200, "strokesToHole": 4.0 },
+    { "distance": 250, "strokesToHole": 4.25 }
+  ],
+  "hazard": [
+    { "distance": 50, "strokesToHole": 3.4 },
+    { "distance": 100, "strokesToHole": 3.7 },
+    { "distance": 150, "strokesToHole": 4.0 },
+    { "distance": 200, "strokesToHole": 4.25 },
+    { "distance": 250, "strokesToHole": 4.5 }
+  ],
+  "green": [
+    { "distance": 1, "strokesToHole": 1.001 },
+    { "distance": 2, "strokesToHole": 1.009 },
+    { "distance": 3, "strokesToHole": 1.053 },
+    { "distance": 4, "strokesToHole": 1.147 },
+    { "distance": 5, "strokesToHole": 1.26 },
+    { "distance": 6, "strokesToHole": 1.37 },
+    { "distance": 7, "strokesToHole": 1.457 },
+    { "distance": 8, "strokesToHole": 1.529 },
+    { "distance": 9, "strokesToHole": 1.59 },
+    { "distance": 10, "strokesToHole": 1.643 },
+    { "distance": 15, "strokesToHole": 1.777 },
+    { "distance": 20, "strokesToHole": 1.859 },
+    { "distance": 25, "strokesToHole": 1.912 },
+    { "distance": 30, "strokesToHole": 1.952 },
+    { "distance": 40, "strokesToHole": 2.014 },
+    { "distance": 50, "strokesToHole": 2.066 },
+    { "distance": 60, "strokesToHole": 2.114 },
+    { "distance": 90, "strokesToHole": 2.235 }
+  ]
+}
