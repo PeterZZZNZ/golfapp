@@ -97,27 +97,26 @@ export function Shell({ children }: { children: React.ReactNode }) {
     p === "/" ? pathname === "/" : pathname === p || pathname.startsWith(p + "/")
   );
 
-  // Redirect unauthenticated visitors away from protected pages.
-  useEffect(() => {
-    if (!isPublic && auth.status === "anon") {
-      router.replace(`/auth?next=${encodeURIComponent(pathname)}`);
-    }
-  }, [isPublic, auth.status, pathname, router]);
-
   // Public routes (landing, auth, onboard) render without any shell chrome.
   if (isPublic) return <>{children}</>;
 
-  // While auth state is resolving show a minimal full-page loader.
+  // ── Auth gate ──────────────────────────────────────────────────────────────
+  // Sidebar and app content are NEVER rendered unless the user is confirmed
+  // signed-in. Both "loading" and "anon" are treated as ungated states.
+
   if (auth.status === "loading") {
+    // Firebase is still resolving the persisted session — show a neutral spinner.
     return (
-      <div className="min-h-screen grid place-items-center">
+      <div className="min-h-screen grid place-items-center bg-[var(--background)]">
         <div className="muted text-sm animate-pulse">Loading…</div>
       </div>
     );
   }
 
-  // Unauthenticated — render nothing (redirect already fired above).
-  if (auth.status === "anon") return null;
+  if (auth.status === "anon") {
+    // Not signed in — show a full-page gate and redirect to /auth.
+    return <AuthGate pathname={pathname} router={router} />;
+  }
 
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === "/dashboard" : pathname === href || pathname.startsWith(href + "/");
@@ -189,23 +188,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <span className="font-semibold text-sm">Golf Tracker</span>
         </Link>
         <div className="flex items-center gap-2">
-          {auth.status === "anon" ? (
-            <Link
-              href="/auth"
-              className="btn btn-ghost !py-1.5 !px-2 text-xs"
-              aria-label="Sign in"
-            >
-              <LogIn size={14} />
-            </Link>
-          ) : (
-            <Link
-              href="/account"
-              className="btn btn-ghost !py-1.5 !px-2 text-xs"
-              aria-label="Account"
-            >
-              <CircleUser size={14} />
-            </Link>
-          )}
+          <Link
+            href="/account"
+            className="btn btn-ghost !py-1.5 !px-2 text-xs"
+            aria-label="Account"
+          >
+            <CircleUser size={14} />
+          </Link>
           <Link href="/rounds/new" className="btn btn-primary !py-1.5 !px-3 text-xs">
             <Plus size={14} /> Round
           </Link>
@@ -246,6 +235,43 @@ export function Shell({ children }: { children: React.ReactNode }) {
           })}
         </div>
       </nav>
+    </div>
+  );
+}
+
+// ── Auth gate ────────────────────────────────────────────────────────────────
+
+import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+
+function AuthGate({
+  pathname,
+  router,
+}: {
+  pathname: string;
+  router: AppRouterInstance;
+}) {
+  // Redirect immediately; also render a visible prompt as a fallback.
+  useEffect(() => {
+    router.replace(`/auth?next=${encodeURIComponent(pathname)}`);
+  }, [pathname, router]);
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-[var(--background)] px-4">
+      <div className="w-10 h-10 rounded-full bg-[var(--accent)] text-white grid place-items-center text-lg font-bold select-none">
+        m
+      </div>
+      <div className="text-center">
+        <p className="font-semibold text-lg">Sign in to continue</p>
+        <p className="muted text-sm mt-1">You need an account to access this page.</p>
+      </div>
+      <div className="flex gap-3">
+        <Link href={`/auth?next=${encodeURIComponent(pathname)}`} className="btn btn-primary">
+          Sign in
+        </Link>
+        <Link href="/" className="btn btn-secondary">
+          Back to home
+        </Link>
+      </div>
     </div>
   );
 }
