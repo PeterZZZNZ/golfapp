@@ -65,7 +65,7 @@ export default function OnboardPage() {
 
   React.useEffect(() => {
     if (auth.status === "authed" && auth.profile?.onboarded) {
-      router.replace("/");
+      router.replace("/dashboard");
     } else if (auth.status === "anon") {
       router.replace("/auth?next=/onboard");
     }

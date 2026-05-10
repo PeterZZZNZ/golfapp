@@ -30,7 +30,7 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/rounds", label: "Rounds", icon: Flag },
   { href: "/stats", label: "Stats", icon: BarChart3 },
   { href: "/courses", label: "Courses", icon: Map },
@@ -87,8 +87,12 @@ function AccountChip() {
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const auth = useAuth();
+
+  // The landing page renders full-screen without the shell chrome.
+  if (pathname === "/") return <>{children}</>;
+
   const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
+    href === "/dashboard" ? pathname === "/dashboard" : pathname === href || pathname.startsWith(href + "/");
 
   const visibleNav = NAV.filter(
     (i) => !i.coachOnly || roleAllowsCoach(auth.profile?.role)
@@ -150,7 +154,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
       {/* Mobile top bar */}
       <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--surface)] sticky top-0 z-20">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/dashboard" className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-[var(--accent)] text-white grid place-items-center text-xs font-bold">
             G
           </div>
