@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import {
   LayoutDashboard,
   Flag,
@@ -20,6 +21,9 @@ import { cn } from "@/lib/util";
 import { useAuth } from "@/lib/firebase/auth";
 import { roleAllowsCoach } from "@/lib/firebase/profiles";
 import { MigrationBanner } from "./MigrationBanner";
+
+/** Routes that don't require authentication and render without the shell chrome. */
+const PUBLIC_PATHS = ["/", "/auth", "/onboard"];
 
 type NavItem = {
   href: string;
@@ -86,10 +90,34 @@ function AccountChip() {
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const auth = useAuth();
 
-  // The landing page renders full-screen without the shell chrome.
-  if (pathname === "/") return <>{children}</>;
+  const isPublic = PUBLIC_PATHS.some((p) =>
+    p === "/" ? pathname === "/" : pathname === p || pathname.startsWith(p + "/")
+  );
+
+  // Redirect unauthenticated visitors away from protected pages.
+  useEffect(() => {
+    if (!isPublic && auth.status === "anon") {
+      router.replace(`/auth?next=${encodeURIComponent(pathname)}`);
+    }
+  }, [isPublic, auth.status, pathname, router]);
+
+  // Public routes (landing, auth, onboard) render without any shell chrome.
+  if (isPublic) return <>{children}</>;
+
+  // While auth state is resolving show a minimal full-page loader.
+  if (auth.status === "loading") {
+    return (
+      <div className="min-h-screen grid place-items-center">
+        <div className="muted text-sm animate-pulse">Loading…</div>
+      </div>
+    );
+  }
+
+  // Unauthenticated — render nothing (redirect already fired above).
+  if (auth.status === "anon") return null;
 
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === "/dashboard" : pathname === href || pathname.startsWith(href + "/");
@@ -101,7 +129,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   // Mobile bottom nav: prioritise core player items + Coach if applicable.
   const mobileNav = visibleNav
     .filter((i) =>
-      ["/", "/rounds", "/stats", "/courses", "/coach"].includes(i.href)
+      ["/dashboard", "/rounds", "/stats", "/courses", "/coach"].includes(i.href)
     )
     .slice(0, 5);
 
