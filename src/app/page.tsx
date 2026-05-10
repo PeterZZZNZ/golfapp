@@ -40,6 +40,8 @@ export default function LandingPage() {
           loop
           playsInline
         />
+        {/* Gradual blur — strongest behind text, fades to clear at edges */}
+        <div className="hero-blur-zone" />
         <div className="hero-overlay" />
 
         <nav className="hero-nav">
@@ -69,11 +71,45 @@ export default function LandingPage() {
             stats, strokes gained breakdowns, and pinpoint insights on exactly where
             to improve.
           </p>
-          <div className="hero-actions">
-            <Link href="/onboard" className="hero-cta-primary">
+          <div
+            className="hero-actions"
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "0.75rem",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Link
+              href="/onboard"
+              className="hero-cta-primary"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                background: "#22c55e",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: "0.95rem",
+                padding: "0.85rem 1.75rem",
+                borderRadius: 9999,
+                textDecoration: "none",
+                boxShadow: "0 4px 20px rgba(34,197,94,0.4)",
+              }}
+            >
               Start onboarding <ChevronRight size={18} />
             </Link>
-            <Link href="/auth" className="hero-cta-ghost">
+            <Link
+              href="/auth"
+              className="hero-cta-ghost"
+              style={{
+                color: "rgba(255,255,255,0.7)",
+                fontSize: "0.9rem",
+                textDecoration: "none",
+                padding: "0.85rem 1rem",
+              }}
+            >
               I already have an account
             </Link>
           </div>
@@ -306,6 +342,7 @@ export default function LandingPage() {
           min-height: 100svh;
           display: flex;
           flex-direction: column;
+          align-items: center;
           background: #0a0f0a;
           overflow: hidden;
         }
@@ -334,6 +371,7 @@ export default function LandingPage() {
           align-items: center;
           justify-content: space-between;
           padding: 1.25rem 2.5rem;
+          width: 100%;
         }
         .hero-nav-brand {
           display: flex;
@@ -385,6 +423,28 @@ export default function LandingPage() {
         }
         .hero-cta-sm:hover { background: rgba(255,255,255,0.2); }
 
+        /* Gradual blur layer — masked so blur fades toward edges */
+        .hero-blur-zone {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+          -webkit-mask-image: radial-gradient(
+            ellipse 62% 70% at 50% 48%,
+            black 10%,
+            rgba(0,0,0,0.6) 45%,
+            transparent 72%
+          );
+          mask-image: radial-gradient(
+            ellipse 62% 70% at 50% 48%,
+            black 10%,
+            rgba(0,0,0,0.6) 45%,
+            transparent 72%
+          );
+        }
+        .hero-overlay { z-index: 2; }
+
         .hero-content {
           position: relative;
           z-index: 10;
@@ -392,9 +452,12 @@ export default function LandingPage() {
           display: flex;
           flex-direction: column;
           justify-content: center;
-          align-items: flex-start;
-          padding: 4rem 2.5rem 6rem;
-          max-width: 760px;
+          align-items: center;
+          text-align: center;
+          padding: 4rem 2rem 6rem;
+          width: 100%;
+          max-width: 820px;
+          margin: 0 auto;
         }
         .hero-badge {
           display: inline-flex;
@@ -412,20 +475,20 @@ export default function LandingPage() {
           margin-bottom: 1.5rem;
         }
         .hero-headline {
-          font-size: clamp(2.5rem, 6vw, 4.25rem);
+          font-size: clamp(2.75rem, 6.5vw, 4.75rem);
           font-weight: 800;
           color: #fff;
-          line-height: 1.1;
+          line-height: 1.08;
           letter-spacing: -0.03em;
           margin: 0 0 1.25rem;
         }
         .hero-accent { color: #4ade80; }
         .hero-sub {
-          color: rgba(255,255,255,0.72);
-          font-size: clamp(1rem, 2vw, 1.175rem);
+          color: rgba(255,255,255,0.75);
+          font-size: clamp(1rem, 2vw, 1.2rem);
           line-height: 1.65;
-          max-width: 560px;
-          margin: 0 0 2.25rem;
+          max-width: 580px;
+          margin: 0 auto 2.25rem;
         }
         .hero-actions {
           display: flex;
@@ -463,6 +526,7 @@ export default function LandingPage() {
           gap: 0.5rem;
           justify-content: center;
           padding-bottom: 2rem;
+          width: 100%;
           color: rgba(255,255,255,0.35);
           font-size: 0.75rem;
         }
@@ -894,10 +958,17 @@ function DemoBar({
   return (
     <div className="demo-bar-row">
       <span className="demo-bar-label">{label}</span>
-      <div className="demo-bar-track">
+      <div
+        className="demo-bar-track"
+        style={{ position: "relative", overflow: "hidden" }}
+      >
         <div
           className="demo-bar-fill"
           style={{
+            position: "absolute",
+            top: 0,
+            height: "100%",
+            borderRadius: 9999,
             background: color,
             width: `${pct}%`,
             left: positive ? "50%" : `${50 - pct}%`,
@@ -911,6 +982,7 @@ function DemoBar({
             left: "50%",
             width: 1,
             background: "#e5e7eb",
+            pointerEvents: "none",
           }}
         />
       </div>
