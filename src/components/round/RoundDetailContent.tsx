@@ -8,7 +8,7 @@
  */
 import * as React from "react";
 import Link from "next/link";
-import { NotebookText } from "lucide-react";
+import { NotebookText, Sparkles, RefreshCw } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { computeHoleSg, holeScore, summarizeRound } from "@/lib/stats";
 import {
@@ -21,6 +21,9 @@ import { fmtScoreToPar, formatDate, signed } from "@/lib/util";
 import { GRADE_LABELS, LIE_LABELS } from "@/lib/types";
 import { isPhysicalShot, shotTypeLabel, PENALTY_TYPE_LABELS } from "@/lib/shotMeta";
 import type { Course, MemorableShot, Round, RoundHighlight } from "@/lib/types";
+import { useUnits } from "@/lib/units";
+import { patchRound } from "@/lib/db/repo";
+import { getSettings } from "@/lib/db/repo";
 
 export type RoundDetailActions = {
   /** Back link label and href. Defaults to /rounds "Rounds" */
@@ -50,9 +53,109 @@ export function RoundDetailContent({
     onDelete,
   } = actions;
 
+  const units = useUnits();
   const s = summarizeRound(round, course);
-  const areaReport = assessRoundAreas(round, course);
+  const areaReport = assessRoundAreas(round, course, { dist: units.dist, putt: units.putt });
   const roundBreakdowns = roundDistanceBreakdowns(round, course);
+
+  // ── AI narrative review ──────────────────────────────────────────────────
+  const [aiReview, setAiReview] = React.useState<string | null>(round.aiReview ?? null);
+  const [aiLoading, setAiLoading] = React.useState(false);
+  const [aiError, setAiError] = React.useState<string | null>(null);
+
+  const generateReview = React.useCallback(async () => {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const settings = await getSettings();
+      const ai = settings?.ai;
+
+      // Build a stats summary for the prompt
+      const statLines = AREA_ORDER.map((k) => {
+        const a = areaReport[k];
+        const grade = a.grade ? `${a.grade}/5` : "n/a";
+        const metrics = a.metrics.map((m) => `${m.label}: ${m.value}`).join(", ");
+        return `${a.label}: ${grade} — ${a.summary}${metrics ? ` (${metrics})` : ""}`;
+      }).join("\n");
+
+      const scoreLine = s.totalScore
+        ? `Score: ${s.totalScore} (${s.scoreToPar !== null ? (s.scoreToPar >= 0 ? `+${s.scoreToPar}` : String(s.scoreToPar)) : "??"} to par)`
+        : "Score: not recorded";
+
+      const systemPrompt = `You are an expert golf performance coach. Analyse the following round statistics and write a concise, insightful round review (3-5 short paragraphs). Be specific about what went well, what cost strokes, and give 1-2 actionable practice suggestions. Be direct and honest — don't pad or be overly encouraging.`;
+
+      const userPrompt = `Course: ${course.name}\nDate: ${round.date}\n${scoreLine}\n\nArea breakdown:\n${statLines}`;
+
+      // Try BYOK first, then server proxy
+      let content = "";
+      if (ai?.apiKey && ai.provider) {
+        const endpoint =
+          ai.provider === "anthropic"
+            ? "https://api.anthropic.com/v1/messages"
+            : ai.provider === "openrouter"
+            ? "https://openrouter.ai/api/v1/chat/completions"
+            : "https://api.openai.com/v1/chat/completions";
+
+        const isAnthropic = ai.provider === "anthropic";
+        const body = isAnthropic
+          ? {
+              model: ai.bulkModel ?? "claude-haiku-4-5",
+              max_tokens: 1024,
+              system: systemPrompt,
+              messages: [{ role: "user", content: userPrompt }],
+            }
+          : {
+              model: ai.bulkModel ?? "gpt-4o-mini",
+              max_tokens: 1024,
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt },
+              ],
+            };
+
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (isAnthropic) {
+          headers["x-api-key"] = ai.apiKey;
+          headers["anthropic-version"] = "2023-06-01";
+        } else {
+          headers["Authorization"] = `Bearer ${ai.apiKey}`;
+        }
+
+        const resp = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body) });
+        const json = await resp.json();
+        if (isAnthropic) {
+          content = json?.content?.[0]?.text ?? "";
+        } else {
+          content = json?.choices?.[0]?.message?.content ?? "";
+        }
+        if (!content) throw new Error(json?.error?.message ?? "No content returned");
+      } else {
+        // Server proxy (requires OPENROUTER_API_KEY env var)
+        const resp = await fetch("/api/ai/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            role: "bulk",
+            maxTokens: 1024,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+          }),
+        });
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json?.error ?? "Server error");
+        content = json.content ?? "";
+      }
+
+      setAiReview(content);
+      await patchRound(round.id, { aiReview: content });
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "Failed to generate review.");
+    } finally {
+      setAiLoading(false);
+    }
+  }, [round, course, s, areaReport]);
   const linkedShots = memorableShots.filter((m) => m.roundId === round.id);
   const pr = round.postRound;
   const bestShots = pr?.bestShots ?? [];
@@ -599,6 +702,41 @@ export function RoundDetailContent({
           </ul>
         </Card>
       ) : null}
+
+      {/* ── AI Round Review ──────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader
+          title="AI round review"
+          subtitle={aiReview ? "Generated by AI — regenerate any time." : "Get an AI coach's take on this round."}
+          right={
+            <button
+              className="btn btn-secondary flex items-center gap-1.5 text-sm"
+              onClick={generateReview}
+              disabled={aiLoading}
+            >
+              {aiLoading ? (
+                <RefreshCw size={14} className="animate-spin" />
+              ) : aiReview ? (
+                <RefreshCw size={14} />
+              ) : (
+                <Sparkles size={14} />
+              )}
+              {aiLoading ? "Generating…" : aiReview ? "Regenerate" : "Generate"}
+            </button>
+          }
+        />
+        {aiError ? (
+          <div className="text-sm text-[var(--danger)] mt-1">{aiError}</div>
+        ) : aiReview ? (
+          <div className="text-sm whitespace-pre-wrap leading-relaxed">{aiReview}</div>
+        ) : (
+          <div className="muted text-sm">
+            {aiLoading
+              ? "Analysing your round…"
+              : "Click Generate to get a personalised AI coaching review of this round. Requires an AI key in Settings."}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

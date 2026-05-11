@@ -255,10 +255,14 @@ export function summarizeRound(round: Round, course: Course): RoundSummary {
         const second = phys[1];
         if (tee && tee.lie === "tee") {
           if (typeof h.driveDistance === "number") {
-            driveDistances.push(h.driveDistance);
+            // simple-entry mode: stored in user unit; best-effort yard conversion
+            driveDistances.push(shotToYards(h.driveDistance, (h as { driveDistanceUnit?: "yd" | "m" | "ft" }).driveDistanceUnit ?? tee.unit ?? "yd"));
           } else if (second) {
-            const est = tee.distanceToHoleBefore - second.distanceToHoleBefore;
-            if (est > 0 && est < 400) driveDistances.push(est);
+            // full-shot mode: subtract distances, convert to yards
+            const teeYards = shotToYards(tee.distanceToHoleBefore, tee.unit ?? "yd");
+            const secondYards = shotToYards(second.distanceToHoleBefore, second.unit ?? "yd");
+            const est = teeYards - secondYards;
+            if (est > 0 && est < 500) driveDistances.push(est);
           }
         }
       }

@@ -776,19 +776,17 @@ function ClubField({
   return (
     <div>
       <div className="label">{label}</div>
-      <Select
-        value={shot.club ?? ""}
-        onChange={(e) =>
-          onChange({ club: e.target.value ? e.target.value : undefined })
-        }
-      >
-        <option value="">—</option>
+      <div className="flex flex-wrap gap-1.5">
         {CLUBS.map((c) => (
-          <option key={c} value={c}>
+          <Chip
+            key={c}
+            active={shot.club === c}
+            onClick={() => onChange({ club: shot.club === c ? undefined : c })}
+          >
             {c}
-          </option>
+          </Chip>
         ))}
-      </Select>
+      </div>
     </div>
   );
 }
@@ -811,15 +809,14 @@ function HoledOutButton({
 }
 
 /**
- * Generic enum select. We type it loosely since we have ~10 distinct enums
- * all with `Record<Enum, string>` label maps and `Enum[]` value arrays.
+ * Inline chip picker — replaces dropdown selects for small enum sets.
+ * Tapping the active chip deselects (sets undefined).
  */
-function EnumSelect<T extends string>({
+function ChipPick<T extends string>({
   value,
   onChange,
   options,
   labels,
-  placeholder = "—",
   disabled = false,
 }: {
   value: T | undefined;
@@ -830,23 +827,22 @@ function EnumSelect<T extends string>({
   disabled?: boolean;
 }) {
   return (
-    <Select
-      value={value ?? ""}
-      disabled={disabled}
-      onChange={(e) => {
-        const v = e.target.value;
-        onChange(v === "" ? undefined : (v as T));
-      }}
-    >
-      <option value="">{placeholder}</option>
+    <div className="flex flex-wrap gap-1.5">
       {options.map((o) => (
-        <option key={o} value={o}>
+        <Chip
+          key={o}
+          active={value === o}
+          onClick={() => !disabled && onChange(value === o ? undefined : o)}
+        >
           {labels[o]}
-        </option>
+        </Chip>
       ))}
-    </Select>
+    </div>
   );
 }
+
+/** Keep the old name as an alias so we don't have to rename every usage site. */
+const EnumSelect = ChipPick;
 
 // =====================================================================
 // Tee shot card
@@ -1018,16 +1014,17 @@ function ApproachShotCard({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <div className="label">Lie</div>
-          <Select
-            value={shot.lie}
-            onChange={(e) => onChange({ lie: e.target.value as Lie })}
-          >
+          <div className="flex flex-wrap gap-1.5">
             {APPROACH_LIES.map((lie) => (
-              <option key={lie} value={lie}>
+              <Chip
+                key={lie}
+                active={shot.lie === lie}
+                onClick={() => onChange({ lie })}
+              >
                 {LIE_LABELS[lie]}
-              </option>
+              </Chip>
             ))}
-          </Select>
+          </div>
         </div>
 
         <div>

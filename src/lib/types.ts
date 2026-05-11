@@ -344,6 +344,8 @@ export type Round = {
   postRound?: PostRound;
   memorableShotIds?: string[];
   isDraft?: boolean;
+  /** AI-generated narrative review; stored locally, regenerable on demand. */
+  aiReview?: string;
   createdAt: number;
   updatedAt: number;
 };

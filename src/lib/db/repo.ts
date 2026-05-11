@@ -100,6 +100,14 @@ export async function deleteRound(id: string): Promise<void> {
   cloudSync(() => deleteRoundFromCloud(id));
 }
 
+/** Shallow-merge a partial update into an existing round (local only — for
+ *  lightweight fields like aiReview that don't need full cloud sync). */
+export async function patchRound(id: string, patch: Partial<Round>): Promise<void> {
+  const existing = await db().rounds.get(id);
+  if (!existing) return;
+  await db().rounds.put({ ...existing, ...patch, updatedAt: Date.now() });
+}
+
 // ---------- Memorable shots ----------
 
 export async function listMemorableShots(): Promise<MemorableShot[]> {

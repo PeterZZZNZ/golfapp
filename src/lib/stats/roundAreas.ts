@@ -1,8 +1,20 @@
 import type { Course, Round, RoundHole } from "../types";
 import { GRADE_LABELS } from "../types";
 import { isPhysicalShot } from "../shotMeta";
-import { shotToFeet, shotToYards } from "../units";
+import {
+  distFromYards,
+  distLabel,
+  puttFromFeet,
+  puttLabel,
+  shotToFeet,
+  shotToYards,
+  type DistUnit,
+  type PuttUnit,
+} from "../units";
 import { holeScore, summarizeRound } from "./index";
+
+export type AreaUnits = { dist: DistUnit; putt: PuttUnit };
+const DEFAULT_AREA_UNITS: AreaUnits = { dist: "m", putt: "ft" };
 
 /** Five areas we grade, matching SelfGrade keys. */
 export type AreaKey = "driving" | "approach" | "shortGame" | "putting" | "mental";
@@ -87,7 +99,8 @@ function fmtSigned(n: number | null): string {
 function assessDriving(
   round: Round,
   course: Course,
-  s: ReturnType<typeof summarizeRound>
+  s: ReturnType<typeof summarizeRound>,
+  units: AreaUnits,
 ): AreaAssessment {
   const metrics: Metric[] = [];
   const firPct = s.firs.attempts
@@ -116,11 +129,12 @@ function assessDriving(
   }
 
   if (s.driveDistances.length) {
-    const avg = s.driveDistances.reduce((a, b) => a + b, 0) / s.driveDistances.length;
+    // driveDistances are always in yards; convert for display
+    const avgYards = s.driveDistances.reduce((a, b) => a + b, 0) / s.driveDistances.length;
     metrics.push({
       label: "Avg drive",
-      value: `${Math.round(avg)} yd`,
-      raw: avg,
+      value: `${Math.round(distFromYards(avgYards, units.dist))} ${distLabel(units.dist)}`,
+      raw: avgYards,
     });
   }
   if (teeShots > 0) {
@@ -163,7 +177,8 @@ function assessDriving(
 function assessApproach(
   round: Round,
   course: Course,
-  s: ReturnType<typeof summarizeRound>
+  s: ReturnType<typeof summarizeRound>,
+  units: AreaUnits,
 ): AreaAssessment {
   const metrics: Metric[] = [];
   const girPct = s.girs.attempts
@@ -197,11 +212,13 @@ function assessApproach(
     }
   }
   if (proximities.length) {
-    const avg = proximities.reduce((a, b) => a + b, 0) / proximities.length;
+    // proximities are always in feet (from shotToFeet); convert for display
+    const avgFt = proximities.reduce((a, b) => a + b, 0) / proximities.length;
+    const dispVal = puttFromFeet(avgFt, units.putt);
     metrics.push({
       label: "Avg proximity",
-      value: `${Math.round(avg)} ft`,
-      raw: avg,
+      value: `${units.putt === "m" ? dispVal.toFixed(1) : Math.round(dispVal)} ${puttLabel(units.putt)}`,
+      raw: avgFt,
     });
   }
 
@@ -434,11 +451,15 @@ function assessMental(round: Round, course: Course): AreaAssessment {
 
 // --- Public API ------------------------------------------------------------
 
-export function assessRoundAreas(round: Round, course: Course): RoundAreaReport {
+export function assessRoundAreas(
+  round: Round,
+  course: Course,
+  units: AreaUnits = DEFAULT_AREA_UNITS,
+): RoundAreaReport {
   const s = summarizeRound(round, course);
   return {
-    driving: assessDriving(round, course, s),
-    approach: assessApproach(round, course, s),
+    driving: assessDriving(round, course, s, units),
+    approach: assessApproach(round, course, s, units),
     shortGame: assessShortGame(round, course, s),
     putting: assessPutting(round, course, s),
     mental: assessMental(round, course),
