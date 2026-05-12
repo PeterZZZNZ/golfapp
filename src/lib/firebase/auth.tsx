@@ -6,6 +6,8 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as fbSignOut,
   updateProfile,
   type User,
@@ -54,6 +56,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     const auth = firebaseAuth();
+
+    // Handle the result of a redirect-based Google sign-in (mobile).
+    getRedirectResult(auth).catch(() => {
+      // Ignore errors here — the onAuthStateChanged listener below will
+      // pick up the signed-in user if the redirect succeeded.
+    });
+
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
         setState({ status: "anon", user: null, profile: null });
@@ -98,7 +107,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signInGoogle = React.useCallback(async () => {
-    await signInWithPopup(firebaseAuth(), googleProvider());
+    const auth = firebaseAuth();
+    const provider = googleProvider();
+    // Use redirect on mobile (popup is blocked by Google's WebView policy);
+    // use popup on desktop for the better UX.
+    const isMobile =
+      typeof navigator !== "undefined" &&
+      /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      await signInWithRedirect(auth, provider);
+    } else {
+      await signInWithPopup(auth, provider);
+    }
   }, []);
 
   const signOut = React.useCallback(async () => {
